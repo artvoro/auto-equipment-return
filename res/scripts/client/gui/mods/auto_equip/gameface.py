@@ -121,6 +121,14 @@ def _set_payload(device_cds):
     return [_slot_payload(cd) for cd in device_cds]
 
 
+def _carousel_busy():
+    try:
+        from . import carousel_menu
+        return carousel_menu.is_busy()
+    except Exception:
+        return False
+
+
 def _playlist_label():
     """The row's label, or None when no playlist is selected - which is what
     makes the popover hide the row."""
@@ -145,7 +153,7 @@ def _build_data():
         'hasSetup2': False,
         'saved1': None,
         'saved2': None,
-        'busy': apply_engine.is_busy(),
+        'busy': apply_engine.is_busy() or _carousel_busy(),
         'selectedStreamer': config.selected_streamer_account_id(),
         'selectedStreamerName': config.selected_streamer_name(),
         'closePopoverToken': _close_popover_token,
@@ -436,13 +444,14 @@ def _unsubscribe_from_vehicle():
 class AutoEquipViewModel(ViewModel):
     __slots__ = ('onJsLog', 'onToggleEnabled', 'onToggleDowngrade',
                  'onToggleAlwaysSetup1', 'onSaveSet', 'onDeleteSets',
-                 'onSaveRecommended', 'onEquipPrimary', 'onEquipPlaylist',
+                 'onSaveRecommended', 'onDemountAllTrophy', 'onEquipPrimary',
+                 'onEquipPlaylist',
                  'onPopoverOpened',
                  'onRequestPreview', 'onOpenStreamerList', 'onSelectStreamer',
                  'onOpenStats')
 
     def __init__(self):
-        super(AutoEquipViewModel, self).__init__(properties=6, commands=14)
+        super(AutoEquipViewModel, self).__init__(properties=6, commands=15)
 
     def getDataJson(self):
         return self._getString(0)
@@ -495,6 +504,7 @@ class AutoEquipViewModel(ViewModel):
         self.onSaveSet = self._addCommand('onSaveSet')
         self.onDeleteSets = self._addCommand('onDeleteSets')
         self.onSaveRecommended = self._addCommand('onSaveRecommended')
+        self.onDemountAllTrophy = self._addCommand('onDemountAllTrophy')
         self.onEquipPrimary = self._addCommand('onEquipPrimary')
         self.onEquipPlaylist = self._addCommand('onEquipPlaylist')
         self.onPopoverOpened = self._addCommand('onPopoverOpened')
@@ -537,6 +547,7 @@ class AutoEquipView(ViewComponent):
             (self.viewModel.onSaveSet, self._on_save_set),
             (self.viewModel.onDeleteSets, self._on_delete_sets),
             (self.viewModel.onSaveRecommended, self._on_save_recommended),
+            (self.viewModel.onDemountAllTrophy, self._on_demount_all_trophy),
             (self.viewModel.onEquipPrimary, self._on_equip_primary),
             (self.viewModel.onEquipPlaylist, self._on_equip_playlist),
             (self.viewModel.onPopoverOpened, self._on_popover_opened),
@@ -781,12 +792,13 @@ class AutoEquipView(ViewComponent):
         except Exception:
             LOG.exc('_on_popover_opened failed')
 
-    def _on_equip_playlist(self, data=None):
+    def _on_demount_all_trophy(self, data=None):
         try:
-            apply_engine.equip_playlist_vehicles()
-            _close_popover()
+            from . import carousel_menu
+            carousel_menu.demount_all_trophy()
+            push_data()
         except Exception:
-            LOG.exc('_on_equip_playlist failed')
+            LOG.exc('_on_demount_all_trophy failed')
 
     def _on_equip_primary(self, data=None):
         try:
@@ -794,6 +806,13 @@ class AutoEquipView(ViewComponent):
             push_data()
         except Exception:
             LOG.exc('_on_equip_primary failed')
+
+    def _on_equip_playlist(self, data=None):
+        try:
+            apply_engine.equip_playlist_vehicles()
+            _close_popover()
+        except Exception:
+            LOG.exc('_on_equip_playlist failed')
 
 
 # ---------------------------------------------------------------------------

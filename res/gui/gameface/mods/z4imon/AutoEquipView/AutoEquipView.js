@@ -283,6 +283,11 @@ const ROW_ICONS = {
         "M9 2.5 h2 v6.5 h3 L10 13.5 6 9 h3 Z",
         "M4 15.5 h12 v2 H4 Z",
     ],
+    // arrow pointing up out of a tray = demount / return to depot
+    demount: [
+        "M9 13.5 h2 V7 h3 L10 2.5 6 7 h3 Z",
+        "M4 15.5 h12 v2 H4 Z",
+    ],
     // two opposing arrows = install/transfer (same motif as the menu button)
     apply: [
         "M3 6.5 H12 V3.5 L17 8 L12 12.5 V9.5 H3 Z",
@@ -1111,6 +1116,9 @@ function buildPopover() {
     if (gData.busy) {
         content.appendChild(buildMenuRow(ui("busy", "Einbau läuft…"), "apply", null, true));
     } else {
+        content.appendChild(buildMenuRow(ui("demountAllTrophy", "Demount all bounty equipment"), "demount", function () {
+            cmd("onDemountAllTrophy");
+        }));
         content.appendChild(buildMenuRow(ui("equipPrimary", "Alle Primärpanzer ausstatten"), "star", function () {
             cmd("onEquipPrimary");
         }));
