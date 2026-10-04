@@ -67,12 +67,17 @@ _DEFAULTS = {
         'equipPrimary': True,
         'equipPlaylist': True,
     },
+    'carouselMenuRows': {
+        'demountEquip': True,
+        'demountBounty': True,
+    },
 }
 
 _EMPTY_ENTRY = {'set1': None, 'set2': None, 'vehicleCD': None, 'updatedAt': None, 'deleted': False}
 
 _settings = dict(_DEFAULTS)
 _settings['iconMenuRows'] = dict(_DEFAULTS['iconMenuRows'])
+_settings['carouselMenuRows'] = dict(_DEFAULTS['carouselMenuRows'])
 
 # True when load_for_account() found no config file at all - an install rather
 # than an upgrade. Read by patchnotes.py, which stays silent in that case.
@@ -182,11 +187,19 @@ def _default_icon_menu_rows():
     return dict((key, True) for key in _ICON_MENU_ROW_KEYS)
 
 
+_CAROUSEL_MENU_ROW_KEYS = ('demountEquip', 'demountBounty')
+
+
+def _default_carousel_menu_rows():
+    return dict((key, True) for key in _CAROUSEL_MENU_ROW_KEYS)
+
+
 def _copy_defaults():
     """Shallow-copy _DEFAULTS and clone nested dicts so a fresh account does
-    not share iconMenuRows with the module-level defaults."""
+    not share iconMenuRows/carouselMenuRows with the module-level defaults."""
     settings = dict(_DEFAULTS)
     settings['iconMenuRows'] = _default_icon_menu_rows()
+    settings['carouselMenuRows'] = _default_carousel_menu_rows()
     return settings
 
 
@@ -203,6 +216,31 @@ def _clean_icon_menu_rows(data):
         elif 'demountAllBountyEnabled' in data:
             rows['demountBounty'] = bool(data.get('demountAllBountyEnabled'))
     return rows
+
+
+def _clean_carousel_menu_rows(data):
+    rows = _default_carousel_menu_rows()
+    raw = data.get('carouselMenuRows')
+    if isinstance(raw, dict):
+        for key in _CAROUSEL_MENU_ROW_KEYS:
+            if key in raw:
+                rows[key] = bool(raw[key])
+    if not isinstance(raw, dict) or 'demountBounty' not in raw:
+        rows['demountBounty'] = _migrated_bounty_toggle(
+            data, 'demountBountyCarouselMenuEnabled')
+    return rows
+
+
+def _migrated_bounty_toggle(data, key):
+    """Reads the carousel bounty-demount flag.
+
+    Accounts that only have the older combined `demountAllBountyEnabled`
+    keep that value so a previous off-switch stays off."""
+    if key in data:
+        return bool(data.get(key))
+    if 'demountAllBountyEnabled' in data:
+        return bool(data.get('demountAllBountyEnabled'))
+    return True
 
 
 def load_for_account(account_id):
@@ -225,6 +263,7 @@ def load_for_account(account_id):
                                       if data.get('equipmentSaveMode') in _SAVE_MODES
                                       else SAVE_MODE_POPOVER),
                 'iconMenuRows': _clean_icon_menu_rows(data),
+                'carouselMenuRows': _clean_carousel_menu_rows(data),
             }
             _was_fresh_install = False
             _sets = _clean_sets(data.get('sets', {}))
@@ -287,6 +326,7 @@ def save():
                 'selectedStreamerName': _settings.get('selectedStreamerName'),
                 'equipmentSaveMode': _settings.get('equipmentSaveMode', SAVE_MODE_POPOVER),
                 'iconMenuRows': dict(_settings.get('iconMenuRows') or _default_icon_menu_rows()),
+                'carouselMenuRows': dict(_settings.get('carouselMenuRows') or _default_carousel_menu_rows()),
                 'sets': _sets,
             }, handle, separators=(',', ':'))
     except Exception:
@@ -407,6 +447,31 @@ def is_demount_bounty_icon_menu_enabled():
 
 def set_demount_bounty_icon_menu_enabled(enabled):
     return set_icon_menu_row_enabled('demountBounty', enabled)
+
+
+def is_carousel_menu_row_enabled(row_id):
+    """Whether the carousel right-click menu shows this row."""
+    rows = _settings.get('carouselMenuRows') or _default_carousel_menu_rows()
+    return bool(rows.get(row_id, True))
+
+
+def set_carousel_menu_row_enabled(row_id, enabled):
+    if row_id not in _CAROUSEL_MENU_ROW_KEYS:
+        return False
+    rows = dict(_settings.get('carouselMenuRows') or _default_carousel_menu_rows())
+    rows[row_id] = bool(enabled)
+    _settings['carouselMenuRows'] = rows
+    save()
+    return rows[row_id]
+
+
+def is_demount_bounty_carousel_menu_enabled():
+    """Carousel right-click bounty-demount row."""
+    return is_carousel_menu_row_enabled('demountBounty')
+
+
+def set_demount_bounty_carousel_menu_enabled(enabled):
+    return set_carousel_menu_row_enabled('demountBounty', enabled)
 
 
 # ---------------------------------------------------------------------------

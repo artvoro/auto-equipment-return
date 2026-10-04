@@ -8,8 +8,10 @@ The panel holds four things:
   (auto-saves from the native setup screen, see gameface.py's
   _maybe_save_confirmed_equipment). Lives here rather than in the popover
   itself, since it is a standing setting, not a per-vehicle action;
-* FEATURE TOGGLES - right-hand column. Standing on/off switches for
-  Icon Menu (hangar popover) rows;
+* FEATURE TOGGLES - right-hand column. Two sections of standing on/off
+  switches: Icon Menu (hangar popover) and Carousel Menu (tank
+  right-click); currently each has the bounty-demount action for that
+  surface;
 * the CLEANUP action (cleanup.py) - one dropdown picking how wide to go and a
   button that runs it. Always there, because it needs nothing but saved sets;
 * the IMPORT section, two ways to seed this account's saved sets instead of
@@ -74,6 +76,7 @@ _VAR_OWN_FILE = 'ownAccountFile'
 _VAR_CLEANUP_SCOPE = 'cleanupScope'
 _VAR_SAVE_MODE = 'equipmentSaveMode'
 _VAR_DEMOUNT_BOUNTY_ICON = 'demountBountyIconMenuEnabled'
+_VAR_DEMOUNT_BOUNTY_CAROUSEL = 'demountBountyCarouselMenuEnabled'
 
 # Icon-menu visibility checkboxes, in popover order. varName is what
 # ModsSettingsAPI stores; row_id is the config.py / Gameface key.
@@ -87,6 +90,11 @@ _ICON_MENU_TOGGLES = (
     ('demountBounty', _VAR_DEMOUNT_BOUNTY_ICON, 'featureToggleDemountAllBounty'),
     ('equipPrimary', 'iconMenuEquipPrimary', 'featureToggleEquipPrimary'),
     ('equipPlaylist', 'iconMenuEquipPlaylist', 'featureToggleEquipPlaylist'),
+)
+
+_CAROUSEL_MENU_TOGGLES = (
+    ('demountEquip', 'carouselMenuDemountEquip', 'featureToggleDemountEquip'),
+    ('demountBounty', _VAR_DEMOUNT_BOUNTY_CAROUSEL, 'featureToggleDemountAllBountyCarousel'),
 )
 
 # Dropdown index <-> config.py value, in the order the dropdown lists them.
@@ -375,6 +383,10 @@ def onModSettingsChanged(linkage, newSettings):
             if var_name in newSettings:
                 config.set_icon_menu_row_enabled(row_id, bool(newSettings[var_name]))
                 toggled = True
+        for row_id, var_name, _label in _CAROUSEL_MENU_TOGGLES:
+            if var_name in newSettings:
+                config.set_carousel_menu_row_enabled(row_id, bool(newSettings[var_name]))
+                toggled = True
         if toggled:
             from . import gameface
             gameface.push_data()
@@ -441,7 +453,7 @@ def _save_mode_row(templates):
 
 
 def _feature_toggle_rows(templates):
-    """Standing on/off switches for hangar popover rows. Unlike cleanup/import,
+    """Standing on/off switches, split by UI surface. Unlike cleanup/import,
     flipping a checkbox IS the whole action - picked up by
     onModSettingsChanged and stored in config.py, same as save mode."""
     rows = [templates.createLabel(t('featureTogglesIconMenuLabel'),
@@ -450,6 +462,13 @@ def _feature_toggle_rows(templates):
         rows.append(templates.createCheckbox(
             t(label_key), var_name,
             config.is_icon_menu_row_enabled(row_id)))
+    rows.append(templates.createEmpty())
+    rows.append(templates.createLabel(t('featureTogglesCarouselMenuLabel'),
+                                      tooltip=t('featureTogglesCarouselMenuTooltip')))
+    for row_id, var_name, label_key in _CAROUSEL_MENU_TOGGLES:
+        rows.append(templates.createCheckbox(
+            t(label_key), var_name,
+            config.is_carousel_menu_row_enabled(row_id)))
     return rows
 
 
@@ -495,7 +514,7 @@ def _build_column1(account_id, templates):
 
 
 def _build_column2(templates):
-    """Right column: feature toggles for the hangar icon menu."""
+    """Right column: feature toggles, one section per UI surface."""
     return _feature_toggle_rows(templates)
 
 

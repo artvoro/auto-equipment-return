@@ -129,7 +129,9 @@ def _cm_label(key):
 def _demount_option(handler):
     """Our menu item for the right-clicked vehicle, or None when the entry
     should not appear at all."""
-    if config.is_mod_disabled() or not inventory.has_wot_plus():
+    if (config.is_mod_disabled()
+            or not config.is_carousel_menu_row_enabled('demountEquip')
+            or not inventory.has_wot_plus()):
         return None
     vehicle = inventory.vehicle_by_inv_id(handler.getVehInvID())
     if vehicle is None:
@@ -148,7 +150,9 @@ def _demount_option(handler):
 def _demount_all_trophy_option(handler):
     """Bounty strip for the right-clicked vehicle only. The hangar popover
     is what walks the whole garage (demount_all_trophy)."""
-    if config.is_mod_disabled() or not inventory.has_wot_plus():
+    if (config.is_mod_disabled()
+            or not config.is_carousel_menu_row_enabled('demountBounty')
+            or not inventory.has_wot_plus()):
         return None
     vehicle = inventory.vehicle_by_inv_id(handler.getVehInvID())
     if vehicle is None:
@@ -230,6 +234,9 @@ def fini():
 @adisp_process
 def demount_free_equipment(veh_inv_id):
     global _busy
+    if not config.is_carousel_menu_row_enabled('demountEquip'):
+        LOG.info('carousel demount: feature toggle off, ignoring')
+        return
     if _busy or _other_run_busy():
         LOG.info('carousel demount: another run is busy, ignoring')
         return
@@ -272,6 +279,9 @@ def demount_free_equipment(veh_inv_id):
 def demount_trophy_equipment(veh_inv_id):
     """Takes free-to-demount trophy/bounty devices off ONE vehicle."""
     global _busy
+    if not config.is_carousel_menu_row_enabled('demountBounty'):
+        LOG.info('carousel bounty demount: feature toggle off, ignoring')
+        return
     if _busy or _other_run_busy():
         LOG.info('carousel bounty demount: another run is busy, ignoring')
         return
@@ -310,6 +320,9 @@ def demount_all_trophy():
     """Takes every free-to-demount trophy/bounty device off every eligible
     tank and leaves standard, Improved and Experimental devices mounted."""
     global _busy
+    if not config.is_demount_bounty_icon_menu_enabled():
+        LOG.info('carousel trophy demount: feature toggle off, ignoring')
+        return
     if _busy or _other_run_busy():
         LOG.info('carousel trophy demount: another run is busy, ignoring')
         return
