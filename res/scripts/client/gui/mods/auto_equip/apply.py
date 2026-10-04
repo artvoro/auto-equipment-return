@@ -1046,9 +1046,10 @@ def _start_if_still_selected(veh_inv_id):
 
 @adisp_process
 def equip_primary_vehicles():
-    """Popover button: equip every filtered Primary vehicle with its saved
-    sets, special devices falling back to their standard variant. Posts one
-    summary, plus a second message listing shortages."""
+    """Popover button: equip every Primary vehicle with its saved sets,
+    special devices falling back to their standard variant. Posts one
+    summary, plus a second message listing shortages. Carousel filter
+    follows the Mod Menu behaviour toggle."""
     global _busy
     if _busy or _other_run_busy():
         messages.push_warning(t('alreadyRunning'))
@@ -1057,7 +1058,8 @@ def equip_primary_vehicles():
     # Mode loaners drop out here rather than inside the run: apply_to_vehicle
     # would refuse them anyway, but counting them as "processed" in the summary
     # would claim work that never happened.
-    targets = [vehicle for vehicle in inventory.filtered_primary_vehicles()
+    targets = [vehicle for vehicle in inventory.filtered_primary_vehicles(
+                   use_carousel_filter=config.equip_primary_uses_filter())
                if not inventory.is_mode_only_vehicle(vehicle)]
     if not targets:
         messages.push_warning(t('batchNoTargets'))
@@ -1111,7 +1113,8 @@ def equip_primary_vehicles():
 def equip_playlist_vehicles():
     """Popover button: same run as equip_primary_vehicles(), but the targets
     come from the playlist the player has selected in the hangar instead of
-    from the Primary flag plus carousel filter.
+    from the Primary flag. Carousel filter follows the Mod Menu behaviour
+    toggle, same as equip_primary_vehicles().
 
     Only offered while a playlist is selected - the popover hides the row
     otherwise, driven by the same inventory.selected_playlist() this reads, so
@@ -1125,7 +1128,8 @@ def equip_playlist_vehicles():
     if title is None:
         messages.push_warning(t('batchPlaylistNoTargets'))
         return
-    owned, missing = inventory.playlist_vehicles()
+    owned, missing = inventory.playlist_vehicles(
+        use_carousel_filter=config.equip_playlist_uses_filter())
     targets = [vehicle for vehicle in owned
                if not inventory.is_mode_only_vehicle(vehicle)]
     if not targets:

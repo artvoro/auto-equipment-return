@@ -71,6 +71,9 @@ _DEFAULTS = {
         'demountEquip': True,
         'demountBounty': True,
     },
+    # Whether batch equip follows the hangar carousel filter. Both on by default.
+    'equipPrimaryUsesFilter': True,
+    'equipPlaylistUsesFilter': True,
 }
 
 _EMPTY_ENTRY = {'set1': None, 'set2': None, 'vehicleCD': None, 'updatedAt': None, 'deleted': False}
@@ -264,6 +267,8 @@ def load_for_account(account_id):
                                       else SAVE_MODE_POPOVER),
                 'iconMenuRows': _clean_icon_menu_rows(data),
                 'carouselMenuRows': _clean_carousel_menu_rows(data),
+                'equipPrimaryUsesFilter': bool(data.get('equipPrimaryUsesFilter', True)),
+                'equipPlaylistUsesFilter': bool(data.get('equipPlaylistUsesFilter', True)),
             }
             _was_fresh_install = False
             _sets = _clean_sets(data.get('sets', {}))
@@ -327,6 +332,8 @@ def save():
                 'equipmentSaveMode': _settings.get('equipmentSaveMode', SAVE_MODE_POPOVER),
                 'iconMenuRows': dict(_settings.get('iconMenuRows') or _default_icon_menu_rows()),
                 'carouselMenuRows': dict(_settings.get('carouselMenuRows') or _default_carousel_menu_rows()),
+                'equipPrimaryUsesFilter': bool(_settings.get('equipPrimaryUsesFilter', True)),
+                'equipPlaylistUsesFilter': bool(_settings.get('equipPlaylistUsesFilter', True)),
                 'sets': _sets,
             }, handle, separators=(',', ':'))
     except Exception:
@@ -412,6 +419,28 @@ def set_equipment_save_mode(mode):
     _settings['equipmentSaveMode'] = mode if mode in _SAVE_MODES else SAVE_MODE_POPOVER
     save()
     return _settings['equipmentSaveMode']
+
+
+def equip_primary_uses_filter():
+    """Whether Equip Primary Vehicles follows the hangar carousel filter."""
+    return bool(_settings.get('equipPrimaryUsesFilter', True))
+
+
+def set_equip_primary_uses_filter(enabled):
+    _settings['equipPrimaryUsesFilter'] = bool(enabled)
+    save()
+    return _settings['equipPrimaryUsesFilter']
+
+
+def equip_playlist_uses_filter():
+    """Whether Equip Playlist Vehicles follows the hangar carousel filter."""
+    return bool(_settings.get('equipPlaylistUsesFilter', True))
+
+
+def set_equip_playlist_uses_filter(enabled):
+    _settings['equipPlaylistUsesFilter'] = bool(enabled)
+    save()
+    return _settings['equipPlaylistUsesFilter']
 
 
 def is_icon_menu_row_enabled(row_id):

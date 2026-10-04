@@ -8,10 +8,9 @@ The panel holds four things:
   (auto-saves from the native setup screen, see gameface.py's
   _maybe_save_confirmed_equipment). Lives here rather than in the popover
   itself, since it is a standing setting, not a per-vehicle action;
-* FEATURE TOGGLES - right-hand column. Two sections of standing on/off
-  switches: Icon Menu (hangar popover) and Carousel Menu (tank
-  right-click); currently each has the bounty-demount action for that
-  surface;
+* FEATURE TOGGLES - right-hand column. Three sections of standing on/off
+  switches: Behavior (how batch equip uses the carousel filter), Icon
+  Menu (hangar popover) and Carousel Menu (tank right-click);
 * the CLEANUP action (cleanup.py) - one dropdown picking how wide to go and a
   button that runs it. Always there, because it needs nothing but saved sets;
 * the IMPORT section, two ways to seed this account's saved sets instead of
@@ -77,6 +76,10 @@ _VAR_CLEANUP_SCOPE = 'cleanupScope'
 _VAR_SAVE_MODE = 'equipmentSaveMode'
 _VAR_DEMOUNT_BOUNTY_ICON = 'demountBountyIconMenuEnabled'
 _VAR_DEMOUNT_BOUNTY_CAROUSEL = 'demountBountyCarouselMenuEnabled'
+# Behavior flags (config.py). Defaults: both batch-equip actions use the
+# carousel filter.
+_VAR_EQUIP_PRIMARY_USES_FILTER = 'equipPrimaryUsesFilter'
+_VAR_EQUIP_PLAYLIST_USES_FILTER = 'equipPlaylistUsesFilter'
 
 # Icon-menu visibility checkboxes, in popover order. varName is what
 # ModsSettingsAPI stores; row_id is the config.py / Gameface key.
@@ -387,6 +390,12 @@ def onModSettingsChanged(linkage, newSettings):
             if var_name in newSettings:
                 config.set_carousel_menu_row_enabled(row_id, bool(newSettings[var_name]))
                 toggled = True
+        if _VAR_EQUIP_PRIMARY_USES_FILTER in newSettings:
+            config.set_equip_primary_uses_filter(
+                bool(newSettings[_VAR_EQUIP_PRIMARY_USES_FILTER]))
+        if _VAR_EQUIP_PLAYLIST_USES_FILTER in newSettings:
+            config.set_equip_playlist_uses_filter(
+                bool(newSettings[_VAR_EQUIP_PLAYLIST_USES_FILTER]))
         if toggled:
             from . import gameface
             gameface.push_data()
@@ -456,8 +465,17 @@ def _feature_toggle_rows(templates):
     """Standing on/off switches, split by UI surface. Unlike cleanup/import,
     flipping a checkbox IS the whole action - picked up by
     onModSettingsChanged and stored in config.py, same as save mode."""
-    rows = [templates.createLabel(t('featureTogglesIconMenuLabel'),
-                                  tooltip=t('featureTogglesIconMenuTooltip'))]
+    rows = [templates.createLabel(t('featureTogglesBehaviorLabel'),
+                                  tooltip=t('featureTogglesBehaviorTooltip'))]
+    rows.append(templates.createCheckbox(
+        t('featureToggleEquipPrimaryUsesFilter'), _VAR_EQUIP_PRIMARY_USES_FILTER,
+        config.equip_primary_uses_filter()))
+    rows.append(templates.createCheckbox(
+        t('featureToggleEquipPlaylistUsesFilter'), _VAR_EQUIP_PLAYLIST_USES_FILTER,
+        config.equip_playlist_uses_filter()))
+    rows.append(templates.createEmpty())
+    rows.append(templates.createLabel(t('featureTogglesIconMenuLabel'),
+                                      tooltip=t('featureTogglesIconMenuTooltip')))
     for row_id, var_name, label_key in _ICON_MENU_TOGGLES:
         rows.append(templates.createCheckbox(
             t(label_key), var_name,
@@ -514,7 +532,7 @@ def _build_column1(account_id, templates):
 
 
 def _build_column2(templates):
-    """Right column: feature toggles, one section per UI surface."""
+    """Right column: feature toggles — behavior, then one section per UI surface."""
     return _feature_toggle_rows(templates)
 
 
