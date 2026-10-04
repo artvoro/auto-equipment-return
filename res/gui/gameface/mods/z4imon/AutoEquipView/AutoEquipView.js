@@ -144,6 +144,12 @@ function parseModelJson(key, fallback) {
 }
 function ui(key, fallback) { return gUi[key] || fallback; }
 
+function iconMenuOn(rowId) {
+    const rows = gData.iconMenu;
+    if (!rows) return true;
+    return rows[rowId] !== false;
+}
+
 // --------------------------------------------------------------------------
 // Menu button (self-built, native background art, inline SVG icon)
 // --------------------------------------------------------------------------
@@ -1085,46 +1091,56 @@ function buildPopover() {
     content.appendChild(buildCheckboxRow(ui("autoLabel", "Automatisch einbauen"), !!gData.enabled, function () {
         cmd("onToggleEnabled");
     }, ui("autoTooltip", "Installiert das gespeicherte Equipment automatisch, sobald dieses Fahrzeug ausgewählt wird")));
-    // downgrade: fall back to the standard variant when a trophy device
-    // cannot be sourced for free
-    content.appendChild(buildCheckboxRow(ui("downgradeLabel", "Enable Downgrade"), !!gData.downgrade, function () {
-        cmd("onToggleDowngrade");
-    }, ui("downgradeTooltip", "Weicht auf die Standard-Ausrüstung aus, falls ein Trophäen-Gerät nicht kostenlos verfügbar ist")));
-    // always end on set 1: also stops donors being switched back, which is the
-    // one server call the game reliably rate-limits
-    content.appendChild(buildCheckboxRow(ui("alwaysSetup1Label", "Always select setup 1"), !!gData.alwaysSetup1, function () {
-        cmd("onToggleAlwaysSetup1");
-    }, ui("alwaysSetup1Tooltip", "Wählt nach dem Einbauen immer Setup 1 aus, statt beim zuletzt genutzten Setup zu bleiben")));
+    if (iconMenuOn("downgrade")) {
+        content.appendChild(buildCheckboxRow(ui("downgradeLabel", "Enable Downgrade"), !!gData.downgrade, function () {
+            cmd("onToggleDowngrade");
+        }, ui("downgradeTooltip", "Weicht auf die Standard-Ausrüstung aus, falls ein Trophäen-Gerät nicht kostenlos verfügbar ist")));
+    }
+    if (iconMenuOn("alwaysSetup1")) {
+        content.appendChild(buildCheckboxRow(ui("alwaysSetup1Label", "Always select setup 1"), !!gData.alwaysSetup1, function () {
+            cmd("onToggleAlwaysSetup1");
+        }, ui("alwaysSetup1Tooltip", "Wählt nach dem Einbauen immer Setup 1 aus, statt beim zuletzt genutzten Setup zu bleiben")));
+    }
 
     // actions as menu rows - the manual Save buttons are redundant (and
     // would fight with it) once "confirmEquipment" (set in the mod's
     // ModsSettingsAPI panel, not here) auto-saves every change from the
     // native setup screen.
     if (gData.equipmentSaveMode !== "confirmEquipment") {
-        content.appendChild(buildMenuRow(ui("save1", "Set 1 speichern"), "save", function () {
-            cmd("onSaveSet", { which: 1 });
-        }));
+        if (iconMenuOn("save1")) {
+            content.appendChild(buildMenuRow(ui("save1", "Set 1 speichern"), "save", function () {
+                cmd("onSaveSet", { which: 1 });
+            }));
+        }
         if (gData.hasSetup2) {
-            content.appendChild(buildMenuRow(ui("save2", "Set 2 speichern"), "save", function () {
-                cmd("onSaveSet", { which: 2 });
-            }));
-            content.appendChild(buildMenuRow(ui("saveBoth", "Beide Sets speichern"), "save", function () {
-                cmd("onSaveSet", { which: 3 });
-            }));
+            if (iconMenuOn("save2")) {
+                content.appendChild(buildMenuRow(ui("save2", "Set 2 speichern"), "save", function () {
+                    cmd("onSaveSet", { which: 2 });
+                }));
+            }
+            if (iconMenuOn("saveBoth")) {
+                content.appendChild(buildMenuRow(ui("saveBoth", "Beide Sets speichern"), "save", function () {
+                    cmd("onSaveSet", { which: 3 });
+                }));
+            }
         }
     }
     if (gData.busy) {
         content.appendChild(buildMenuRow(ui("busy", "Einbau läuft…"), "apply", null, true));
     } else {
-        content.appendChild(buildMenuRow(ui("demountAllTrophy", "Demount all bounty equipment"), "demount", function () {
-            cmd("onDemountAllTrophy");
-        }));
-        content.appendChild(buildMenuRow(ui("equipPrimary", "Alle Primärpanzer ausstatten"), "star", function () {
-            cmd("onEquipPrimary");
-        }));
+        if (iconMenuOn("demountBounty")) {
+            content.appendChild(buildMenuRow(ui("demountAllTrophy", "Demount all bounty equipment"), "demount", function () {
+                cmd("onDemountAllTrophy");
+            }));
+        }
+        if (iconMenuOn("equipPrimary")) {
+            content.appendChild(buildMenuRow(ui("equipPrimary", "Alle Primärpanzer ausstatten"), "star", function () {
+                cmd("onEquipPrimary");
+            }));
+        }
         // Only present while a playlist is selected - Python sends the
         // finished label, so there is nothing to decide here.
-        if (gData.playlistLabel) {
+        if (iconMenuOn("equipPlaylist") && gData.playlistLabel) {
             content.appendChild(buildMenuRow(gData.playlistLabel, "apply", function () {
                 cmd("onEquipPlaylist");
             }));

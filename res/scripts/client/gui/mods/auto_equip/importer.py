@@ -2,12 +2,14 @@
 """The mod's optional ModsSettingsAPI panel, and the save-file importing that
 is most of what it offers.
 
-The panel holds three things:
+The panel holds four things:
 
 * the SAVE MODE setting - popover (manual Save buttons) or confirmEquipment
   (auto-saves from the native setup screen, see gameface.py's
   _maybe_save_confirmed_equipment). Lives here rather than in the popover
   itself, since it is a standing setting, not a per-vehicle action;
+* FEATURE TOGGLES - right-hand column. Standing on/off switches for
+  Icon Menu (hangar popover) rows;
 * the CLEANUP action (cleanup.py) - one dropdown picking how wide to go and a
   button that runs it. Always there, because it needs nothing but saved sets;
 * the IMPORT section, two ways to seed this account's saved sets instead of
@@ -71,6 +73,21 @@ _VAR_KURZDOR_FILE = 'kurzdorFile'
 _VAR_OWN_FILE = 'ownAccountFile'
 _VAR_CLEANUP_SCOPE = 'cleanupScope'
 _VAR_SAVE_MODE = 'equipmentSaveMode'
+_VAR_DEMOUNT_BOUNTY_ICON = 'demountBountyIconMenuEnabled'
+
+# Icon-menu visibility checkboxes, in popover order. varName is what
+# ModsSettingsAPI stores; row_id is the config.py / Gameface key.
+# demountBounty keeps its original varName so existing panel state carries over.
+_ICON_MENU_TOGGLES = (
+    ('downgrade', 'iconMenuDowngrade', 'featureToggleDowngrade'),
+    ('alwaysSetup1', 'iconMenuAlwaysSetup1', 'featureToggleAlwaysSetup1'),
+    ('save1', 'iconMenuSave1', 'featureToggleSave1'),
+    ('save2', 'iconMenuSave2', 'featureToggleSave2'),
+    ('saveBoth', 'iconMenuSaveBoth', 'featureToggleSaveBoth'),
+    ('demountBounty', _VAR_DEMOUNT_BOUNTY_ICON, 'featureToggleDemountAllBounty'),
+    ('equipPrimary', 'iconMenuEquipPrimary', 'featureToggleEquipPrimary'),
+    ('equipPlaylist', 'iconMenuEquipPlaylist', 'featureToggleEquipPlaylist'),
+)
 
 # Dropdown index <-> config.py value, in the order the dropdown lists them.
 _SAVE_MODE_VALUES = (config.SAVE_MODE_POPOVER, config.SAVE_MODE_CONFIRM_EQUIPMENT)
@@ -353,6 +370,14 @@ def onModSettingsChanged(linkage, newSettings):
                 # own load to gameface's regardless of load order.
                 from . import gameface
                 gameface.push_data()
+        toggled = False
+        for row_id, var_name, _label in _ICON_MENU_TOGGLES:
+            if var_name in newSettings:
+                config.set_icon_menu_row_enabled(row_id, bool(newSettings[var_name]))
+                toggled = True
+        if toggled:
+            from . import gameface
+            gameface.push_data()
     except Exception:
         LOG.exc('onModSettingsChanged failed')
 
@@ -415,6 +440,19 @@ def _save_mode_row(templates):
         tooltip=t('saveModeTooltip'))
 
 
+def _feature_toggle_rows(templates):
+    """Standing on/off switches for hangar popover rows. Unlike cleanup/import,
+    flipping a checkbox IS the whole action - picked up by
+    onModSettingsChanged and stored in config.py, same as save mode."""
+    rows = [templates.createLabel(t('featureTogglesIconMenuLabel'),
+                                  tooltip=t('featureTogglesIconMenuTooltip'))]
+    for row_id, var_name, label_key in _ICON_MENU_TOGGLES:
+        rows.append(templates.createCheckbox(
+            t(label_key), var_name,
+            config.is_icon_menu_row_enabled(row_id)))
+    return rows
+
+
 def _cleanup_row(templates):
     """The cleanup action. ModsSettingsAPI has no standalone button component -
     a button only ever rides along with a control - so the scope dropdown is
@@ -443,10 +481,10 @@ def _import_rows(templates):
     return rows
 
 
-def _build_column(account_id, templates):
-    """Save mode first (a standing setting), then cleanup (the everyday
-    action), then importing - a one-off most players never do, and for most
-    of them the import section is not there at all."""
+def _build_column1(account_id, templates):
+    """Left column: save mode, cleanup, then importing. Importing is a
+    one-off most players never do, and for most of them that section is
+    not there at all."""
     column = [_save_mode_row(templates), _cleanup_row(templates)]
     rows = _import_rows(templates)
     if rows:
@@ -454,6 +492,11 @@ def _build_column(account_id, templates):
         column.append(templates.createLabel(t('importAccountLabel', accountId=account_id)))
         column.extend(rows)
     return column
+
+
+def _build_column2(templates):
+    """Right column: feature toggles for the hangar icon menu."""
+    return _feature_toggle_rows(templates)
 
 
 def _get_settings_api():
@@ -504,11 +547,17 @@ def register(account_id):
     template = {
         'modDisplayName': t('panelDisplayName'),
         'enabled': True,
-        'column1': _build_column(account_id, templates),
+        'column1': _build_column1(account_id, templates),
+        'column2': _build_column2(templates),
     }
     try:
-        if g_modsSettingsApi.getModSettings(_MOD_LINKAGE, template):
+        saved = g_modsSettingsApi.getModSettings(_MOD_LINKAGE, template)
+        if saved:
             g_modsSettingsApi.registerCallback(_MOD_LINKAGE, onModSettingsChanged, onButtonClicked)
+            # The stored template is the layout as well as the values. A later
+            # version that moves rows (feature toggles into column2) would
+            # otherwise keep the old single-column panel.
+            _refresh_mod_template(g_modsSettingsApi, template)
         else:
             g_modsSettingsApi.setModTemplate(_MOD_LINKAGE, template,
                                              onModSettingsChanged, onButtonClicked)
@@ -517,6 +566,20 @@ def register(account_id):
     except Exception:
         LOG.exc('register failed')
     _hook_mod_menu_opened(g_modsSettingsApi)
+
+
+def _refresh_mod_template(g_modsSettingsApi, template):
+    """Pushes an updated column1/column2 without orphaning already-saved values.
+    Aslain's menu has reloadModTemplate for exactly this; izeberg's original
+    only has setModTemplate, which still merges by varName."""
+    if hasattr(g_modsSettingsApi, 'reloadModTemplate'):
+        try:
+            g_modsSettingsApi.reloadModTemplate(_MOD_LINKAGE, template)
+            return
+        except Exception:
+            LOG.exc('reloadModTemplate failed, falling back to setModTemplate')
+    g_modsSettingsApi.setModTemplate(_MOD_LINKAGE, template,
+                                     onModSettingsChanged, onButtonClicked)
 
 
 def _hook_mod_menu_opened(g_modsSettingsApi):

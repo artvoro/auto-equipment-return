@@ -55,11 +55,24 @@ _DEFAULTS = {
     # the next hangar load without a network round trip.
     'selectedStreamerName': None,
     'equipmentSaveMode': SAVE_MODE_POPOVER,
+    # Visibility of hangar popover (icon menu) rows. Each flag only hides the
+    # UI; it does not change the underlying setting (downgrade / set 1).
+    'iconMenuRows': {
+        'downgrade': True,
+        'alwaysSetup1': True,
+        'save1': True,
+        'save2': True,
+        'saveBoth': True,
+        'demountBounty': True,
+        'equipPrimary': True,
+        'equipPlaylist': True,
+    },
 }
 
 _EMPTY_ENTRY = {'set1': None, 'set2': None, 'vehicleCD': None, 'updatedAt': None, 'deleted': False}
 
 _settings = dict(_DEFAULTS)
+_settings['iconMenuRows'] = dict(_DEFAULTS['iconMenuRows'])
 
 # True when load_for_account() found no config file at all - an install rather
 # than an upgrade. Read by patchnotes.py, which stays silent in that case.
@@ -159,6 +172,39 @@ def _clean_sets(raw):
                 if isinstance(entry, dict))
 
 
+_ICON_MENU_ROW_KEYS = (
+    'downgrade', 'alwaysSetup1', 'save1', 'save2', 'saveBoth',
+    'demountBounty', 'equipPrimary', 'equipPlaylist',
+)
+
+
+def _default_icon_menu_rows():
+    return dict((key, True) for key in _ICON_MENU_ROW_KEYS)
+
+
+def _copy_defaults():
+    """Shallow-copy _DEFAULTS and clone nested dicts so a fresh account does
+    not share iconMenuRows with the module-level defaults."""
+    settings = dict(_DEFAULTS)
+    settings['iconMenuRows'] = _default_icon_menu_rows()
+    return settings
+
+
+def _clean_icon_menu_rows(data):
+    rows = _default_icon_menu_rows()
+    raw = data.get('iconMenuRows')
+    if isinstance(raw, dict):
+        for key in _ICON_MENU_ROW_KEYS:
+            if key in raw:
+                rows[key] = bool(raw[key])
+    if not isinstance(raw, dict) or 'demountBounty' not in raw:
+        if 'demountBountyIconMenuEnabled' in data:
+            rows['demountBounty'] = bool(data.get('demountBountyIconMenuEnabled'))
+        elif 'demountAllBountyEnabled' in data:
+            rows['demountBounty'] = bool(data.get('demountAllBountyEnabled'))
+    return rows
+
+
 def load_for_account(account_id):
     """(Re)loads the config for `account_id`. Must only be called once that is
     a real account id - see mod_auto_equip's account-load sequence."""
@@ -178,6 +224,7 @@ def load_for_account(account_id):
                 'equipmentSaveMode': (data.get('equipmentSaveMode')
                                       if data.get('equipmentSaveMode') in _SAVE_MODES
                                       else SAVE_MODE_POPOVER),
+                'iconMenuRows': _clean_icon_menu_rows(data),
             }
             _was_fresh_install = False
             _sets = _clean_sets(data.get('sets', {}))
@@ -185,7 +232,7 @@ def load_for_account(account_id):
         else:
             # First time we see this account: start clean, then give kurzdor's
             # save for the same account id a chance to seed it.
-            _settings = dict(_DEFAULTS)
+            _settings = _copy_defaults()
             _sets = {}
             _was_fresh_install = True
             _import_kurzdor_save_once()
@@ -239,6 +286,7 @@ def save():
                 'selectedStreamerAccountId': _settings.get('selectedStreamerAccountId'),
                 'selectedStreamerName': _settings.get('selectedStreamerName'),
                 'equipmentSaveMode': _settings.get('equipmentSaveMode', SAVE_MODE_POPOVER),
+                'iconMenuRows': dict(_settings.get('iconMenuRows') or _default_icon_menu_rows()),
                 'sets': _sets,
             }, handle, separators=(',', ':'))
     except Exception:
@@ -324,6 +372,41 @@ def set_equipment_save_mode(mode):
     _settings['equipmentSaveMode'] = mode if mode in _SAVE_MODES else SAVE_MODE_POPOVER
     save()
     return _settings['equipmentSaveMode']
+
+
+def is_icon_menu_row_enabled(row_id):
+    """Whether the hangar popover shows this row. Not gated on
+    _mod_disabled: a disabled mod already hides the popover."""
+    rows = _settings.get('iconMenuRows') or _default_icon_menu_rows()
+    return bool(rows.get(row_id, True))
+
+
+def set_icon_menu_row_enabled(row_id, enabled):
+    if row_id not in _ICON_MENU_ROW_KEYS:
+        return False
+    rows = dict(_settings.get('iconMenuRows') or _default_icon_menu_rows())
+    rows[row_id] = bool(enabled)
+    _settings['iconMenuRows'] = rows
+    save()
+    return rows[row_id]
+
+
+def icon_menu_rows():
+    """All hangar-popover visibility flags, for the Gameface payload."""
+    rows = dict(_default_icon_menu_rows())
+    stored = _settings.get('iconMenuRows')
+    if isinstance(stored, dict):
+        rows.update(dict((key, bool(stored.get(key, True))) for key in _ICON_MENU_ROW_KEYS))
+    return rows
+
+
+def is_demount_bounty_icon_menu_enabled():
+    """Hangar popover bounty-demount row."""
+    return is_icon_menu_row_enabled('demountBounty')
+
+
+def set_demount_bounty_icon_menu_enabled(enabled):
+    return set_icon_menu_row_enabled('demountBounty', enabled)
 
 
 # ---------------------------------------------------------------------------

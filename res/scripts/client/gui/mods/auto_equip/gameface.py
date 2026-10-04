@@ -161,6 +161,7 @@ def _build_data():
         # a playlist is selected, and formatting it here keeps the wording in
         # the language files instead of teaching the JS to interpolate.
         'playlistLabel': _playlist_label(),
+        'iconMenu': config.icon_menu_rows(),
     }
     try:
         vehicle = g_currentVehicle.item
@@ -581,6 +582,8 @@ class AutoEquipView(ViewComponent):
 
     def _on_toggle_downgrade(self, data=None):
         try:
+            if not config.is_icon_menu_row_enabled('downgrade'):
+                return
             config.set_downgrade_enabled(not config.is_downgrade_enabled())
             push_data()
         except Exception:
@@ -588,6 +591,8 @@ class AutoEquipView(ViewComponent):
 
     def _on_toggle_always_setup1(self, data=None):
         try:
+            if not config.is_icon_menu_row_enabled('alwaysSetup1'):
+                return
             config.set_always_setup1(not config.is_always_setup1())
             push_data()
         except Exception:
@@ -596,6 +601,10 @@ class AutoEquipView(ViewComponent):
     def _on_save_set(self, data=None):
         try:
             which = int(data.get('which', save.BOTH_SETS)) if data else save.BOTH_SETS
+            row_id = {save.SET_1: 'save1', save.SET_2: 'save2',
+                      save.BOTH_SETS: 'saveBoth'}.get(which)
+            if row_id and not config.is_icon_menu_row_enabled(row_id):
+                return
             status = save.save_current_vehicle_sets(which)
             LOG.info('_on_save_set(%s): %s' % (which, status))
             push_data()
@@ -795,6 +804,8 @@ class AutoEquipView(ViewComponent):
     def _on_demount_all_trophy(self, data=None):
         try:
             from . import carousel_menu
+            if not config.is_demount_bounty_icon_menu_enabled():
+                return
             carousel_menu.demount_all_trophy()
             push_data()
         except Exception:
@@ -802,6 +813,8 @@ class AutoEquipView(ViewComponent):
 
     def _on_equip_primary(self, data=None):
         try:
+            if not config.is_icon_menu_row_enabled('equipPrimary'):
+                return
             apply_engine.equip_primary_vehicles()
             push_data()
         except Exception:
@@ -809,6 +822,8 @@ class AutoEquipView(ViewComponent):
 
     def _on_equip_playlist(self, data=None):
         try:
+            if not config.is_icon_menu_row_enabled('equipPlaylist'):
+                return
             apply_engine.equip_playlist_vehicles()
             _close_popover()
         except Exception:
