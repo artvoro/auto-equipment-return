@@ -12,15 +12,19 @@
   - Depending on the amount of vehicles, this takes time, this is normal!
   - After all equipments are succesfully equipped, the automatic equipment return is disabled
     to allow browsing the other tanks.
-- *Equip playlist vehicles:* same batch install, but for the (filtered) tanks in the current playlist.
+- *Equip playlist vehicles:* same batch install, but for the tanks in the current playlist.
+  The carousel filter is ignored here unless you turn it on under *Feature Toggles (Behavior)*.
 - *Demount equipment:* right-click a tank in the carousel to demount all equipment
   that demounts for free.
 - *Demount bounty equipment:* right-click a tank in the carousel to demount only
-  bounty equipment that demounts for free.
+  bounty equipment that demounts for free. Off by default, turn it on under
+  *Feature Toggles (Tank Carousel Menu)*.
 - *Demount all bounty equipment:* if clicked, demounts bounty equipment
-  from every tank in the hangar. Ideal for **Frontline**, **Onslaught** and **Onslaught light**.
-  Using this, your limited bounty equipment goes back to the depot, so you can
-  use the normal auto-install feature to set up all tanks you want to prioritize
+  from every tank in the hangar. Off by default, turn it on under
+  *Feature Toggles (Icon Menu)*. Ideal for **Frontline**, **Onslaught** and **Onslaught light**.
+  Using this, your limited bounty equipment goes back to the depot. Afterwards the
+  automatic equipment return is disabled, so browsing tanks does not put it straight
+  back. Turn auto-install on again and select the tanks you want to prioritize
   in your upcoming session. Once a notification indicates that auto-install is
   stealing equipment from other tanks, you know that you used up all your free
   bounty equipment.

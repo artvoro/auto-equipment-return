@@ -1107,28 +1107,23 @@ function buildPopover() {
     // ModsSettingsAPI panel, not here) auto-saves every change from the
     // native setup screen.
     if (gData.equipmentSaveMode !== "confirmEquipment") {
-        if (iconMenuOn("save1")) {
-            content.appendChild(buildMenuRow(ui("save1", "Set 1 speichern"), "save", function () {
-                cmd("onSaveSet", { which: 1 });
-            }));
-        }
+        content.appendChild(buildMenuRow(ui("save1", "Set 1 speichern"), "save", function () {
+            cmd("onSaveSet", { which: 1 });
+        }));
         if (gData.hasSetup2) {
-            if (iconMenuOn("save2")) {
-                content.appendChild(buildMenuRow(ui("save2", "Set 2 speichern"), "save", function () {
-                    cmd("onSaveSet", { which: 2 });
-                }));
-            }
-            if (iconMenuOn("saveBoth")) {
-                content.appendChild(buildMenuRow(ui("saveBoth", "Beide Sets speichern"), "save", function () {
-                    cmd("onSaveSet", { which: 3 });
-                }));
-            }
+            content.appendChild(buildMenuRow(ui("save2", "Set 2 speichern"), "save", function () {
+                cmd("onSaveSet", { which: 2 });
+            }));
+            content.appendChild(buildMenuRow(ui("saveBoth", "Beide Sets speichern"), "save", function () {
+                cmd("onSaveSet", { which: 3 });
+            }));
         }
     }
     if (gData.busy) {
-        content.appendChild(buildMenuRow(ui("busy", "Einbau läuft…"), "apply", null, true));
+        content.appendChild(buildMenuRow(gData.busyLabel || ui("busy", "Einbau läuft…"), "apply", null, true));
     } else {
-        if (iconMenuOn("demountBounty")) {
+        // opt-in row: hidden unless Python explicitly turned it on
+        if (gData.iconMenu && gData.iconMenu.demountBounty === true) {
             content.appendChild(buildMenuRow(ui("demountAllTrophy", "Demount all bounty equipment"), "demount", function () {
                 cmd("onDemountAllTrophy");
             }));

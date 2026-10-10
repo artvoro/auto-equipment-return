@@ -74,30 +74,24 @@ _VAR_KURZDOR_FILE = 'kurzdorFile'
 _VAR_OWN_FILE = 'ownAccountFile'
 _VAR_CLEANUP_SCOPE = 'cleanupScope'
 _VAR_SAVE_MODE = 'equipmentSaveMode'
-_VAR_DEMOUNT_BOUNTY_ICON = 'demountBountyIconMenuEnabled'
-_VAR_DEMOUNT_BOUNTY_CAROUSEL = 'demountBountyCarouselMenuEnabled'
-# Behavior flags (config.py). Defaults: both batch-equip actions use the
-# carousel filter.
+# Behavior flags (config.py). Defaults: equip primary uses the carousel
+# filter, equip playlist does not.
 _VAR_EQUIP_PRIMARY_USES_FILTER = 'equipPrimaryUsesFilter'
 _VAR_EQUIP_PLAYLIST_USES_FILTER = 'equipPlaylistUsesFilter'
 
 # Icon-menu visibility checkboxes, in popover order. varName is what
 # ModsSettingsAPI stores; row_id is the config.py / Gameface key.
-# demountBounty keeps its original varName so existing panel state carries over.
 _ICON_MENU_TOGGLES = (
     ('downgrade', 'iconMenuDowngrade', 'featureToggleDowngrade'),
     ('alwaysSetup1', 'iconMenuAlwaysSetup1', 'featureToggleAlwaysSetup1'),
-    ('save1', 'iconMenuSave1', 'featureToggleSave1'),
-    ('save2', 'iconMenuSave2', 'featureToggleSave2'),
-    ('saveBoth', 'iconMenuSaveBoth', 'featureToggleSaveBoth'),
-    ('demountBounty', _VAR_DEMOUNT_BOUNTY_ICON, 'featureToggleDemountAllBounty'),
+    ('demountBounty', 'iconMenuDemountBounty', 'featureToggleDemountAllBounty'),
     ('equipPrimary', 'iconMenuEquipPrimary', 'featureToggleEquipPrimary'),
     ('equipPlaylist', 'iconMenuEquipPlaylist', 'featureToggleEquipPlaylist'),
 )
 
 _CAROUSEL_MENU_TOGGLES = (
     ('demountEquip', 'carouselMenuDemountEquip', 'featureToggleDemountEquip'),
-    ('demountBounty', _VAR_DEMOUNT_BOUNTY_CAROUSEL, 'featureToggleDemountAllBountyCarousel'),
+    ('demountBounty', 'carouselMenuDemountBounty', 'featureToggleDemountAllBountyCarousel'),
 )
 
 # Dropdown index <-> config.py value, in the order the dropdown lists them.
@@ -366,6 +360,10 @@ def onModSettingsChanged(linkage, newSettings):
     if linkage != _MOD_LINKAGE:
         return
     try:
+        LOG.info('settings panel changed: %s'
+                 % dict((key, newSettings[key]) for key in sorted(newSettings)
+                        if key.startswith('iconMenu') or key.startswith('carouselMenu')
+                        or key == _VAR_SAVE_MODE))
         if _VAR_SAVE_MODE in newSettings:
             index = int(newSettings[_VAR_SAVE_MODE])
             if 0 <= index < len(_SAVE_MODE_VALUES):
@@ -532,7 +530,7 @@ def _build_column1(account_id, templates):
 
 
 def _build_column2(templates):
-    """Right column: feature toggles — behavior, then one section per UI surface."""
+    """Right column: feature toggles - behavior, then one section per UI surface."""
     return _feature_toggle_rows(templates)
 
 

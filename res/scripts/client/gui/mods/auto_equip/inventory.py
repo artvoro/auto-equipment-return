@@ -721,8 +721,8 @@ def filtered_primary_vehicles(use_carousel_filter=True):
 
     When use_carousel_filter is True, the set is narrowed to what the hangar
     is actually showing: that hangar's carousel filter AND the selected
-    vehicle playlist. Cleanup keeps this default. The equip-primary button
-    passes the Mod Menu behaviour toggle.
+    vehicle playlist. The equip-primary button
+    and the cleanup's Primary scope pass the Mod Menu behaviour toggle.
 
     When False, every hangar-eligible favourite is returned, regardless of
     the carousel filter or a selected playlist."""

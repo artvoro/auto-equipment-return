@@ -1095,7 +1095,7 @@ def equip_primary_vehicles():
         if totals.missing_counts:
             messages.push_error(u'<br/>'.join(totals.missing_lines()))
         _ask_about_paid_installs(totals.confirm_runs)
-        _disable_auto_install_after_batch()
+        disable_auto_install_after_batch()
         LOG.info('equip_primary_vehicles: done - processed=%d installed=%d missing=%s'
                  % (totals.processed, totals.installed, totals.missing_counts))
     except Exception:
@@ -1165,7 +1165,7 @@ def equip_playlist_vehicles():
         if totals.missing_counts:
             messages.push_error(u'<br/>'.join(totals.missing_lines()))
         _ask_about_paid_installs(totals.confirm_runs)
-        _disable_auto_install_after_batch()
+        disable_auto_install_after_batch()
         LOG.info('equip_playlist_vehicles: done - processed=%d installed=%d missing=%s'
                  % (totals.processed, totals.installed, totals.missing_counts))
     except Exception:
@@ -1297,7 +1297,7 @@ class _BatchTotals(object):
         return lines
 
 
-def _disable_auto_install_after_batch():
+def disable_auto_install_after_batch():
     """Auto-install would otherwise re-shuffle equipment the moment the player
     browses through their OTHER vehicles right after a batch: each selection
     re-triggers a run, which can pull a device straight back off a Primary
@@ -1306,7 +1306,9 @@ def _disable_auto_install_after_batch():
 
     The cleanup run deliberately does NOT do this: it hands equipment back to
     the depot, and the normal per-vehicle install is what should redistribute
-    it."""
+    it. The garage-wide bounty demount (carousel_menu.py) does, so the freed
+    bounty devices wait in the depot until the player turns auto-install back
+    on and picks the tanks that should get them first."""
     if not config.is_auto_enabled():
         return
     config.set_auto_enabled(False)

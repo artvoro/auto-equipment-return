@@ -57,23 +57,24 @@ _DEFAULTS = {
     'equipmentSaveMode': SAVE_MODE_POPOVER,
     # Visibility of hangar popover (icon menu) rows. Each flag only hides the
     # UI; it does not change the underlying setting (downgrade / set 1).
+    # Defaults match the menus before these toggles existed: every old row
+    # shown, the newer bounty-demount rows opt-in.
     'iconMenuRows': {
         'downgrade': True,
         'alwaysSetup1': True,
-        'save1': True,
-        'save2': True,
-        'saveBoth': True,
-        'demountBounty': True,
+        'demountBounty': False,
         'equipPrimary': True,
         'equipPlaylist': True,
     },
     'carouselMenuRows': {
         'demountEquip': True,
-        'demountBounty': True,
+        'demountBounty': False,
     },
-    # Whether batch equip follows the hangar carousel filter. Both on by default.
+    # Whether batch equip follows the hangar carousel filter. Primary does by
+    # default (it means "everything I am looking at"); a playlist is an
+    # explicit choice and ignores the filter unless the player opts in.
     'equipPrimaryUsesFilter': True,
-    'equipPlaylistUsesFilter': True,
+    'equipPlaylistUsesFilter': False,
 }
 
 _EMPTY_ENTRY = {'set1': None, 'set2': None, 'vehicleCD': None, 'updatedAt': None, 'deleted': False}
@@ -181,20 +182,19 @@ def _clean_sets(raw):
 
 
 _ICON_MENU_ROW_KEYS = (
-    'downgrade', 'alwaysSetup1', 'save1', 'save2', 'saveBoth',
-    'demountBounty', 'equipPrimary', 'equipPlaylist',
+    'downgrade', 'alwaysSetup1', 'demountBounty', 'equipPrimary', 'equipPlaylist',
 )
 
 
 def _default_icon_menu_rows():
-    return dict((key, True) for key in _ICON_MENU_ROW_KEYS)
+    return dict(_DEFAULTS['iconMenuRows'])
 
 
 _CAROUSEL_MENU_ROW_KEYS = ('demountEquip', 'demountBounty')
 
 
 def _default_carousel_menu_rows():
-    return dict((key, True) for key in _CAROUSEL_MENU_ROW_KEYS)
+    return dict(_DEFAULTS['carouselMenuRows'])
 
 
 def _copy_defaults():
@@ -213,11 +213,6 @@ def _clean_icon_menu_rows(data):
         for key in _ICON_MENU_ROW_KEYS:
             if key in raw:
                 rows[key] = bool(raw[key])
-    if not isinstance(raw, dict) or 'demountBounty' not in raw:
-        if 'demountBountyIconMenuEnabled' in data:
-            rows['demountBounty'] = bool(data.get('demountBountyIconMenuEnabled'))
-        elif 'demountAllBountyEnabled' in data:
-            rows['demountBounty'] = bool(data.get('demountAllBountyEnabled'))
     return rows
 
 
@@ -228,22 +223,7 @@ def _clean_carousel_menu_rows(data):
         for key in _CAROUSEL_MENU_ROW_KEYS:
             if key in raw:
                 rows[key] = bool(raw[key])
-    if not isinstance(raw, dict) or 'demountBounty' not in raw:
-        rows['demountBounty'] = _migrated_bounty_toggle(
-            data, 'demountBountyCarouselMenuEnabled')
     return rows
-
-
-def _migrated_bounty_toggle(data, key):
-    """Reads the carousel bounty-demount flag.
-
-    Accounts that only have the older combined `demountAllBountyEnabled`
-    keep that value so a previous off-switch stays off."""
-    if key in data:
-        return bool(data.get(key))
-    if 'demountAllBountyEnabled' in data:
-        return bool(data.get('demountAllBountyEnabled'))
-    return True
 
 
 def load_for_account(account_id):
@@ -268,7 +248,7 @@ def load_for_account(account_id):
                 'iconMenuRows': _clean_icon_menu_rows(data),
                 'carouselMenuRows': _clean_carousel_menu_rows(data),
                 'equipPrimaryUsesFilter': bool(data.get('equipPrimaryUsesFilter', True)),
-                'equipPlaylistUsesFilter': bool(data.get('equipPlaylistUsesFilter', True)),
+                'equipPlaylistUsesFilter': bool(data.get('equipPlaylistUsesFilter', False)),
             }
             _was_fresh_install = False
             _sets = _clean_sets(data.get('sets', {}))
@@ -333,7 +313,7 @@ def save():
                 'iconMenuRows': dict(_settings.get('iconMenuRows') or _default_icon_menu_rows()),
                 'carouselMenuRows': dict(_settings.get('carouselMenuRows') or _default_carousel_menu_rows()),
                 'equipPrimaryUsesFilter': bool(_settings.get('equipPrimaryUsesFilter', True)),
-                'equipPlaylistUsesFilter': bool(_settings.get('equipPlaylistUsesFilter', True)),
+                'equipPlaylistUsesFilter': bool(_settings.get('equipPlaylistUsesFilter', False)),
                 'sets': _sets,
             }, handle, separators=(',', ':'))
     except Exception:
@@ -434,7 +414,7 @@ def set_equip_primary_uses_filter(enabled):
 
 def equip_playlist_uses_filter():
     """Whether Equip Playlist Vehicles follows the hangar carousel filter."""
-    return bool(_settings.get('equipPlaylistUsesFilter', True))
+    return bool(_settings.get('equipPlaylistUsesFilter', False))
 
 
 def set_equip_playlist_uses_filter(enabled):
@@ -447,7 +427,7 @@ def is_icon_menu_row_enabled(row_id):
     """Whether the hangar popover shows this row. Not gated on
     _mod_disabled: a disabled mod already hides the popover."""
     rows = _settings.get('iconMenuRows') or _default_icon_menu_rows()
-    return bool(rows.get(row_id, True))
+    return bool(rows.get(row_id, _DEFAULTS['iconMenuRows'].get(row_id, True)))
 
 
 def set_icon_menu_row_enabled(row_id, enabled):
@@ -465,23 +445,15 @@ def icon_menu_rows():
     rows = dict(_default_icon_menu_rows())
     stored = _settings.get('iconMenuRows')
     if isinstance(stored, dict):
-        rows.update(dict((key, bool(stored.get(key, True))) for key in _ICON_MENU_ROW_KEYS))
+        rows.update(dict((key, bool(stored.get(key, rows[key])))
+                         for key in _ICON_MENU_ROW_KEYS))
     return rows
-
-
-def is_demount_bounty_icon_menu_enabled():
-    """Hangar popover bounty-demount row."""
-    return is_icon_menu_row_enabled('demountBounty')
-
-
-def set_demount_bounty_icon_menu_enabled(enabled):
-    return set_icon_menu_row_enabled('demountBounty', enabled)
 
 
 def is_carousel_menu_row_enabled(row_id):
     """Whether the carousel right-click menu shows this row."""
     rows = _settings.get('carouselMenuRows') or _default_carousel_menu_rows()
-    return bool(rows.get(row_id, True))
+    return bool(rows.get(row_id, _DEFAULTS['carouselMenuRows'].get(row_id, True)))
 
 
 def set_carousel_menu_row_enabled(row_id, enabled):
@@ -492,15 +464,6 @@ def set_carousel_menu_row_enabled(row_id, enabled):
     _settings['carouselMenuRows'] = rows
     save()
     return rows[row_id]
-
-
-def is_demount_bounty_carousel_menu_enabled():
-    """Carousel right-click bounty-demount row."""
-    return is_carousel_menu_row_enabled('demountBounty')
-
-
-def set_demount_bounty_carousel_menu_enabled(enabled):
-    return set_carousel_menu_row_enabled('demountBounty', enabled)
 
 
 # ---------------------------------------------------------------------------

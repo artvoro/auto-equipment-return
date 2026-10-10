@@ -129,6 +129,14 @@ def _carousel_busy():
         return False
 
 
+def _carousel_busy_text():
+    try:
+        from . import carousel_menu
+        return carousel_menu.busy_text()
+    except Exception:
+        return None
+
+
 def _playlist_label():
     """The row's label, or None when no playlist is selected - which is what
     makes the popover hide the row."""
@@ -162,6 +170,9 @@ def _build_data():
         # the language files instead of teaching the JS to interpolate.
         'playlistLabel': _playlist_label(),
         'iconMenu': config.icon_menu_rows(),
+        # None unless a carousel demount runs - the popover then shows its
+        # text instead of the default "installing" busy row.
+        'busyLabel': _carousel_busy_text(),
     }
     try:
         vehicle = g_currentVehicle.item
@@ -601,10 +612,6 @@ class AutoEquipView(ViewComponent):
     def _on_save_set(self, data=None):
         try:
             which = int(data.get('which', save.BOTH_SETS)) if data else save.BOTH_SETS
-            row_id = {save.SET_1: 'save1', save.SET_2: 'save2',
-                      save.BOTH_SETS: 'saveBoth'}.get(which)
-            if row_id and not config.is_icon_menu_row_enabled(row_id):
-                return
             status = save.save_current_vehicle_sets(which)
             LOG.info('_on_save_set(%s): %s' % (which, status))
             push_data()
@@ -804,7 +811,7 @@ class AutoEquipView(ViewComponent):
     def _on_demount_all_trophy(self, data=None):
         try:
             from . import carousel_menu
-            if not config.is_demount_bounty_icon_menu_enabled():
+            if not config.is_icon_menu_row_enabled('demountBounty'):
                 return
             carousel_menu.demount_all_trophy()
             push_data()
@@ -825,7 +832,7 @@ class AutoEquipView(ViewComponent):
             if not config.is_icon_menu_row_enabled('equipPlaylist'):
                 return
             apply_engine.equip_playlist_vehicles()
-            _close_popover()
+            push_data()
         except Exception:
             LOG.exc('_on_equip_playlist failed')
 

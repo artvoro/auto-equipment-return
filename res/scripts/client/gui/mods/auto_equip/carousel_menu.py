@@ -39,10 +39,17 @@ _OPTION_DEMOUNT_TROPHY = 'z4imonDemountAllTrophy'
 # One run at a time, and never on top of an apply or cleanup run - all three
 # move the same devices around.
 _busy = False
+# The veil text of the running run, so the hangar popover's busy row says
+# "demounting" instead of its default "installing".
+_busy_text = None
 
 
 def is_busy():
     return _busy
+
+
+def busy_text():
+    return _busy_text if _busy else None
 
 
 def _other_run_busy():
@@ -187,11 +194,6 @@ def _hooked_generate_options(self, ctx=None):
     if extras:
         options.append(self._makeSeparator())
         options.extend(extras)
-        try:
-            LOG.info('carousel menu extras: %s'
-                     % [item.get('id') for item in extras])
-        except Exception:
-            LOG.info('carousel menu extras added (%d)' % len(extras))
     return options
 
 
@@ -233,7 +235,7 @@ def fini():
 
 @adisp_process
 def demount_free_equipment(veh_inv_id):
-    global _busy
+    global _busy, _busy_text
     if not config.is_carousel_menu_row_enabled('demountEquip'):
         LOG.info('carousel demount: feature toggle off, ignoring')
         return
@@ -252,9 +254,10 @@ def demount_free_equipment(veh_inv_id):
         return
 
     _busy = True
+    _busy_text = t('cmDemountWaiting')
     removed = 0
     veil_shown = messages.show_waiting(messages.WAITING_KEY_OPERATION,
-                                       t('cmDemountWaiting'))
+                                       _busy_text)
     try:
         LOG.info('carousel demount: start for %s' % vehicle.userName)
         removed = yield _demount_vehicle(veh_inv_id, _accept_all)
@@ -273,12 +276,13 @@ def demount_free_equipment(veh_inv_id):
         # the notification centre - same as the batch run's message.
         messages.push_info(t('cmDemountDone', count=removed, veh=vehicle.userName),
                            priority=NotificationPriorityLevel.HIGH)
+        apply_engine.notify_refresh()
 
 
 @adisp_process
 def demount_trophy_equipment(veh_inv_id):
     """Takes free-to-demount trophy/bounty devices off ONE vehicle."""
-    global _busy
+    global _busy, _busy_text
     if not config.is_carousel_menu_row_enabled('demountBounty'):
         LOG.info('carousel bounty demount: feature toggle off, ignoring')
         return
@@ -297,9 +301,10 @@ def demount_trophy_equipment(veh_inv_id):
         return
 
     _busy = True
+    _busy_text = t('demountAllTrophyWaiting')
     removed = 0
     veil_shown = messages.show_waiting(messages.WAITING_KEY_OPERATION,
-                                       t('demountAllTrophyWaiting'))
+                                       _busy_text)
     try:
         LOG.info('carousel bounty demount: start for %s' % vehicle.userName)
         removed = yield _demount_vehicle(veh_inv_id, _is_trophy)
@@ -313,14 +318,15 @@ def demount_trophy_equipment(veh_inv_id):
             messages.hide_waiting(messages.WAITING_KEY_OPERATION)
         messages.push_info(t('cmDemountDone', count=removed, veh=vehicle.userName),
                            priority=NotificationPriorityLevel.HIGH)
+        apply_engine.notify_refresh()
 
 
 @adisp_process
 def demount_all_trophy():
     """Takes every free-to-demount trophy/bounty device off every eligible
     tank and leaves standard, Improved and Experimental devices mounted."""
-    global _busy
-    if not config.is_demount_bounty_icon_menu_enabled():
+    global _busy, _busy_text
+    if not config.is_icon_menu_row_enabled('demountBounty'):
         LOG.info('carousel trophy demount: feature toggle off, ignoring')
         return
     if _busy or _other_run_busy():
@@ -333,10 +339,11 @@ def demount_all_trophy():
         return
 
     _busy = True
+    _busy_text = t('demountAllTrophyWaiting')
     removed = 0
     vehicles_touched = 0
     veil_shown = messages.show_waiting(messages.WAITING_KEY_OPERATION,
-                                       t('demountAllTrophyWaiting'))
+                                       _busy_text)
     try:
         LOG.info('carousel trophy demount: start, %d vehicle(s): %s'
                  % (len(found), [vehicle.userName for vehicle in found]))
@@ -353,7 +360,7 @@ def demount_all_trophy():
         # Auto-install would put the saved trophy sets straight back on the
         # next vehicle click. Same protection as the Primary batch run.
         if removed:
-            _disable_auto_install()
+            apply_engine.disable_auto_install_after_batch()
     except Exception:
         LOG.exc('demount_all_trophy failed')
     finally:
@@ -361,14 +368,6 @@ def demount_all_trophy():
         if veil_shown:
             messages.hide_waiting(messages.WAITING_KEY_OPERATION)
         apply_engine.notify_refresh()
-
-
-def _disable_auto_install():
-    if not config.is_auto_enabled():
-        return
-    config.set_auto_enabled(False)
-    messages.push_warning(t('autoDisabledAfterBatch'),
-                          priority=NotificationPriorityLevel.HIGH)
 
 
 @adisp_async
